@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STS MRKT - Магазин</title>
+<style>
+    /* =========================================
+       БАЗОВЫЕ СТИЛИ И ЭФФЕКТ ЖИДКОГО СТЕКЛА
+       ========================================= */
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    body { 
+        margin: 0; 
+        background-color: #12121c; 
+        background-image: radial-gradient(circle at 50% 0%, #1e1e32, #12121c);
+        color: #fff; 
+        display: flex; 
+        justify-content: center; 
+        min-height: 100vh;
+    }
+    
+    .app { 
+        width: 100%; 
+        max-width: 420px; 
+        background: #181826; 
+        min-height: 100vh; 
+        padding: 16px; 
+        position: relative; 
+        overflow-x: hidden; 
+        transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+    }
+
+    /* Стили жидкого стекла (Glassmorphism) */
+    .app.glass-mode {
+        background: rgba(24, 24, 38, 0.65) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .app.glass-mode .card, 
+    .app.glass-mode .package-item, 
+    .app.glass-mode .method-item, 
+    .app.glass-mode .card-box, 
+    .app.glass-mode .input-text {
+        background: rgba(34, 34, 52, 0.5) !important;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .page { display: none; flex-direction: column; animation: fadeIn 0.3s ease; }
+    .page.active { display: flex; }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* =========================================
+       ШАПКА (TOP BAR)
+       ========================================= */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+    .title-logo { font-size: 22px; font-weight: bold; color: #38b6ff; text-shadow: 0 0 10px rgba(56, 182, 255, 0.3); }
+    .btn-back { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
+    
+    /* =========================================
+       ГЛАВНОЕ МЕНЮ
+       ========================================= */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    
+    .card { background: #222234; border-radius: 14px; padding: 20px 12px; text-align: center; cursor: pointer; transition: 0.1s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .card:active { transform: scale(0.97); background: #28283d; }
+    .card .icon { font-size: 38px; margin-bottom: 12px; }
+    .card .label { font-size: 14px; font-weight: 500; }
+    
+    /* =========================================
+       ЭКРАН МАГАЗИНА
+       ========================================= */
+    .store-hero { text-align: center; margin-bottom: 25px; }
+    .store-hero .hero-icon { font-size: 55px; line-height: 1; }
+    .store-hero h2 { color: #ffcc00; margin: 12px 0 0 0; font-size: 24px;}
+    
+    .field-group { margin-bottom: 18px; }
+    .field-label { font-size: 14px; color: #8f8fa8; margin-bottom: 10px; font-weight: 500;}
+    .input-text { width: 100%; background: #222234; border: 1px solid #33334c; padding: 14px; border-radius: 10px; color: #fff; font-size: 15px; outline: none; transition: border 0.2s;}
+    .input-text:focus { border-color: #38b6ff; }
+    .input-text:disabled { opacity: 0.7; cursor: not-allowed; background: #1b1b29; }
+
+    .packages { display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;}
+    .packages::-webkit-scrollbar { width: 4px; }
+    .packages::-webkit-scrollbar-thumb { background: #33334c; border-radius: 4px; }
+    
+    .package-item { background: #222234; border: 2px solid transparent; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; cursor: pointer; transition: 0.2s;}
+    .package-item.selected { border-color: #4c6ef5; background: #2a2d4f; }
+    .pkg-name { font-weight: 500; font-size: 15px;}
+    .pkg-price { color: #38b6ff; font-weight: bold; font-size: 15px;}
+    
+    .pay-methods { display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; }
+    .method-item { background: #222234; border: 2px solid transparent; padding: 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s;}
+    .method-item.selected { border-color: #38b6ff; background: #232d42;}
+    
+    .btn-submit { width: 100%; background: #38b6ff; border: none; color: #12121c; padding: 16px; border-radius: 12px; font-weight: 800; font-size: 16px; cursor: pointer; transition: 0.2s;}
+    .btn-submit:active { transform: scale(0.98); opacity: 0.9; }
+
+    /* =========================================
+       ЭКРАН СЧЕТА И ПРОФИЛЯ
+       ========================================= */
+    .card-box { background: linear-gradient(135deg, #2b2b40, #1c1c2b); border: 1px solid #383854; border-radius: 14px; padding: 18px; margin: 20px 0; text-align: left; }
+    .card-number { font-size: 20px; font-weight: bold; letter-spacing: 1.5px; margin: 12px 0; display: flex; justify-content: space-between; align-items: center;}
+
+    /* Переключатель (Toggle Switch) */
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; background: #222234; padding: 14px; border-radius: 10px; border: 1px solid #33334c; }
+    .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #33334c; transition: .3s; border-radius: 26px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: #38b6ff; }
+    input:checked + .slider:before { transform: translateX(24px); }
+</style>
+</head>
+<body>
+
+<div class="app" id="app-container">
+
+    <!-- ГЛАВНОЕ МЕНЮ -->
+    <div class="page active" id="page-main">
+        <div class="top-bar">
+            <div class="title-logo" id="main-shop-title">STS MRKT</div>
+            <div style="background: #2a2a3c; padding: 6px 10px; border-radius: 50%; font-size: 18px; cursor: pointer;" onclick="openSettings()">⚙️</div>
+        </div>
+        
+        <div class="grid">
+            <div class="card" onclick="openProduct('stars')">
+                <div class="icon">⭐</div>
+                <div class="label">Купить звезды</div>
+            </div>
+            <div class="card" onclick="openProduct('premium')">
+                <div class="icon">✨</div>
+                <div class="label">Купить премиум</div>
+            </div>
+            <div class="card" onclick="openProduct('gifts')">
+                <div class="icon">🧸</div>
+                <div class="label">Купить подарок</div>
+            </div>
+            <div class="card" onclick="openProfile()" style="background: #2a2d4f; border: 1px solid #38b6ff;">
+                <div class="icon">👤</div>
+                <div class="label" style="color: #38b6ff;">Мой профиль<br>(Чеки)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- МАГАЗИН -->
+    <div class="page" id="page-store">
+        <div class="top-bar">
+            <button class="btn-back" onclick="goTo('page-main')">← Назад</button>
+        </div>
+        
+        <div class="store-hero">
+            <div class="hero-icon" id="store-icon">🐥</div>
+            <h2 id="store-title">Telegram Stars</h2>
+        </div>
+        
+        <div class="field-group">
+            <div class="field-label">Введите имя пользователя:</div>
+            <input type="text" id="username-input" class="input-text" value="@" placeholder="@username">
+        </div>
+
+        <div class="field-label">Выберите пакет:</div>
+        <div class="packages" id="package-container"></div>
+
+        <div class="field-label">Выберите способ оплаты:</div>
+        <div class="pay-methods">
+            <div class="method-item selected" onclick="selectPay(this, 'card')">
+                <span>💳 Uzcard / Humo</span><b id="card-badge">Комиссия 2%</b>
+            </div>
+        </div>
+
+        <button class="btn-submit" id="pay-btn" onclick="goToInvoice()">Оплатить</button>
+    </div>
+
+    <!-- РЕКВИЗИТЫ ОПЛАТЫ -->
+    <div class="page" id="page-invoice">
+        <div class="top-bar">
+            <button class="btn-back" onclick="goTo('page-store')">← Назад</button>
+            <span style="font-size: 13px; color: #8f8fa8; font-weight: bold;" id="inv-order-id">ЗАКАЗ #00000</span>
+        </div>
+
+        <div class="card-box" style="margin-top: 0;">
+            <div style="font-size: 12px; color: #8f8fa8; letter-spacing: 1px;" id="inv-method-title">UZCARD / HUMO</div>
+            <div class="card-number">
+                <span id="card-num-text">5614 6817 1899 0439</span>
+                <span style="cursor:pointer; background: #38b6ff; padding: 5px 10px; border-radius: 8px; font-size: 14px; color: #12121c;" onclick="copyCard()">Копия</span>
+            </div>
+            <div style="font-size: 13px; color: #a0a0b0;" id="inv-holder-text">Получатель: Усманов Аслан</div>
+        </div>
+
+        <div class="field-group" style="background: rgba(74, 222, 128, 0.1); padding:16px; border-radius:12px; border:1px solid #275244; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 14px; color: #4ade80; font-weight: 500;" id="inv-final-label">Сумма к оплате:</div>
+            <div id="inv-price" style="font-size: 20px; font-weight: bold; color: #4ade80;">-</div>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #b3b3b3;" id="inv-instruction">
+            Переведите точную сумму, а затем нажмите кнопку ниже.
+        </div>
+
+        <button class="btn-submit" style="background: #4ade80; color: #12121c; margin-top: 15px;" onclick="finishOrder()">Оплатил (Отправить чек в Telegram)</button>
+    </div>
+
+    <!-- ПРОФИЛЬ (ЧЕКИ) -->
+    <div class="page" id="page-profile">
+        <div class="top-bar">
+            <button class="btn-back" onclick="goTo('page-main')">← Назад</button>
+            <div class="title-logo" style="font-size:18px;">Мой профиль</div>
+        </div>
+        
+        <div class="field-label" style="font-size:16px; color:#fff; margin-bottom:15px;">Мои чеки (Заказы):</div>
+        
+        <div id="orders-container" style="display:flex; flex-direction:column; gap:15px;"></div>
+    </div>
+
+    <!-- НАСТРОЙКИ -->
+    <div class="page" id="page-settings">
+        <div class="top-bar">
+            <button class="btn-back" onclick="goTo('page-main')">← Назад</button>
+            <div class="title-logo" style="font-size:18px;">Настройки</div>
+        </div>
+
+        <div class="field-group">
+            <div class="field-label">Эффект интерфейса:</div>
+            <div class="toggle-row">
+                <span>Жидкое стекло (Glassmorphism)</span>
+                <label class="switch">
+                    <input type="checkbox" id="glass-toggle" onchange="toggleGlassEffect(this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="field-group">
+            <div class="field-label">Юзернейм поддержки (Заблокировано):</div>
+            <input type="text" class="input-text" value="STS_MRKT_Support" disabled>
+        </div>
+
+        <div class="field-group">
+            <div class="field-label">Номер банковской карты (Заблокировано):</div>
+            <input type="text" class="input-text" value="5614 6817 1899 0439" disabled>
+        </div>
+
+        <div class="field-group">
+            <div class="field-label">Имя получателя платежа (Заблокировано):</div>
+            <input type="text" class="input-text" value="Усманов Аслан" disabled>
+        </div>
+
+        <div class="field-group">
+            <div class="field-label">Комиссия Uzcard / Humo (Заблокировано):</div>
+            <input type="text" class="input-text" value="2%" disabled>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const db = {
+        stars: {
+            title: "Telegram Stars", icon: "⭐",
+            items: [
+                { id: 1, name: "⭐ 50 Stars", price: 11000 },
+                { id: 2, name: "⭐ 100 Stars", price: 22000 },
+                { id: 3, name: "⭐ 150 Stars", price: 33000 },
+                { id: 4, name: "⭐ 200 Stars", price: 44000 },
+                { id: 5, name: "⭐ 250 Stars", price: 55000 },
+                { id: 6, name: "⭐ 350 Stars", price: 77000 },
+                { id: 7, name: "⭐ 500 Stars", price: 110000 },
+                { id: 8, name: "⭐ 1000 Stars", price: 220000 }
+            ]
+        },
+        premium: {
+            title: "Telegram Premium", icon: "✨",
+            items: [
+                { id: 10, name: "✨ Премиум 1 месяц", price: 35000 },
+                { id: 11, name: "✨ Премиум 3 месяца", price: 95000 },
+                { id: 12, name: "✨ Премиум 6 месяцев", price: 160000 },
+                { id: 13, name: "✨ Премиум 1 год", price: 300000 }
+            ]
+        },
+        gifts: {
+            title: "Telegram Подарки", icon: "🧸",
+            items: [
+                { id: 20, name: "🧸 Маленький медведь", price: 15000 },
+                { id: 24, name: "🌸 Цветок", price: 25000 },
+                { id: 23, name: "💎 Бриллиант", price: 65000 }
+            ]
+        }
+    };
+
+    let currentCategory = 'stars';
+    let selectedItemName = '';
+    let baseItemPrice = 0;
+    let selectedPaymentMethod = 'card'; 
+    
+    let orders = JSON.parse(localStorage.getItem('sts_orders')) || [];
+    let pendingOrder = null;
+
+    const appSettings = {
+        shopName: 'STS MRKT',
+        support: 'STS_MRKT_Support',
+        cardNum: '5614 6817 1899 0439',
+        cardHolder: 'Усманов Аслан',
+        cardCommissionPercent: 2
+    };
+
+    let isGlassEnabled = localStorage.getItem('sts_glass_effect') === 'true';
+    if (isGlassEnabled) {
+        document.getElementById('app-container').classList.add('glass-mode');
+        document.getElementById('glass-toggle').checked = true;
+    }
+
+    function toggleGlassEffect(checkbox) {
+        if (checkbox.checked) {
+            document.getElementById('app-container').classList.add('glass-mode');
+            localStorage.setItem('sts_glass_effect', 'true');
+        } else {
+            document.getElementById('app-container').classList.remove('glass-mode');
+            localStorage.setItem('sts_glass_effect', 'false');
+        }
+    }
+
+    const usernameInput = document.getElementById('username-input');
+    usernameInput.addEventListener('input', function() {
+        if (!this.value.startsWith('@')) {
+            this.value = '@' + this.value.replace(/@/g, '');
+        }
+    });
+
+    function goTo(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+    }
+
+    function openSettings() {
+        goTo('page-settings');
+    }
+
+    function openProduct(category) {
+        currentCategory = category;
+        const data = db[category];
+        
+        document.getElementById('store-title').innerText = data.title;
+        document.getElementById('store-icon').innerText = data.icon;
+        
+        const container = document.getElementById('package-container');
+        container.innerHTML = ''; 
+        
+        data.items.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = `package-item ${index === 0 ? 'selected' : ''}`;
+            div.onclick = function() { selectPkg(this, item.name, item.price); };
+            div.innerHTML = `<span class="pkg-name">${item.name}</span><span class="pkg-price">${item.price.toLocaleString('ru-RU')} UZS</span>`;
+            container.appendChild(div);
+            
+            if (index === 0) {
+                selectedItemName = item.name;
+                baseItemPrice = item.price;
+                updatePayButton();
+            }
+        });
+        goTo('page-store');
+    }
+
+    function selectPkg(element, name, price) {
+        document.querySelectorAll('.package-item').forEach(i => i.classList.remove('selected'));
+        element.classList.add('selected');
+        selectedItemName = name;
+        baseItemPrice = price;
+        updatePayButton();
+    }
+
+    function selectPay(element, method) {
+        document.querySelectorAll('.method-item').forEach(i => i.classList.remove('selected'));
+        element.classList.add('selected');
+        selectedPaymentMethod = method;
+        updatePayButton();
+    }
+
+    function calculateFinalPrice() {
+        const percent = appSettings.cardCommissionPercent;
+        return Math.round(baseItemPrice * (1 + percent / 100));
+    }
+
+    function updatePayButton() {
+        const finalPrice = calculateFinalPrice();
+        document.getElementById('pay-btn').innerText = `Оплатить - ${finalPrice.toLocaleString('ru-RU')} UZS`;
+    }
+
+    function goToInvoice() {
+        const username = usernameInput.value.trim();
+        
+        if (username === '' || username === '@') {
+            alert('Пожалуйста, введите имя пользователя для получения товара!');
+            return;
+        }
+
+        const icon = db[currentCategory].icon;
+        const orderId = Math.floor(10000 + Math.random() * 90000);
+        const finalPrice = calculateFinalPrice();
+        const methodText = 'Uzcard / Humo (Комиссия 2%)';
+        
+        pendingOrder = {
+            id: orderId,
+            date: new Date().toLocaleDateString('ru-RU') + ' ' + new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}),
+            icon: icon,
+            name: selectedItemName,
+            user: username,
+            price: finalPrice,
+            method: methodText
+        };
+
+        document.getElementById('inv-order-id').innerText = `ЗАКАЗ #${orderId}`;
+        document.getElementById('card-num-text').innerText = appSettings.cardNum;
+        document.getElementById('inv-holder-text').innerText = `Получатель: ${appSettings.cardHolder}`;
+        document.getElementById('inv-price').innerText = `${finalPrice.toLocaleString('ru-RU')} UZS`;
+        
+        document.getElementById('inv-method-title').innerText = 'UZCARD / HUMO (Учтена комиссия 2%)';
+        document.getElementById('inv-instruction').innerText = `Переведите точную сумму на карту (с учетом комиссии 2%), а затем нажмите кнопку ниже.`;
+        
+        goTo('page-invoice');
+    }
+
+    function finishOrder() {
+        if(pendingOrder) {
+            orders.push(pendingOrder);
+            localStorage.setItem('sts_orders', JSON.stringify(orders));
+            
+            const tgText = `Здравствуйте! Я совершил оплату заказа:\n\n📦 Товар: ${pendingOrder.icon} ${pendingOrder.name}\n👤 Получатель: ${pendingOrder.user}\n💳 Способ оплаты: ${pendingOrder.method}\n💰 Сумма: ${pendingOrder.price} UZS\n\nЧек оплаты прикрепляю ниже.`;
+            
+            window.open(`https://t.me/${appSettings.support}?text=${encodeURIComponent(tgText)}`, '_blank');
+            
+            pendingOrder = null;
+        }
+        openProfile();
+    }
+
+    function openProfile() {
+        const container = document.getElementById('orders-container');
+        container.innerHTML = '';
+        
+        if(orders.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#8f8fa8; margin-top:20px;">У вас пока нет заказов</div>';
+        } else {
+            orders.slice().reverse().forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'card-box';
+                div.style.margin = '0'; 
+                
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #383854; padding-bottom:10px;">
+                        <b style="color:#38b6ff;">Чек #${o.id}</b>
+                        <span style="font-size:12px; color:#a0a0b0;">${o.date}</span>
+                    </div>
+                    <div style="margin-bottom:6px; font-size:14px;"><b>Товар:</b> ${o.icon} ${o.name}</div>
+                    <div style="margin-bottom:6px; font-size:14px; color:#a0a0b0;"><b>Получатель:</b> ${o.user}</div>
+                    <div style="margin-bottom:6px; font-size:14px; color:#38b6ff;"><b>Способ:</b> ${o.method}</div>
+                    <div style="margin-bottom:10px; font-size:15px; color:#4ade80; font-weight:bold;">Оплачено: ${o.price.toLocaleString('ru-RU')} UZS</div>
+                    <div style="font-size:12px; color:#8f8fa8;">Ожидает проверки чека в Telegram</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        goTo('page-profile');
+    }
+
+    function copyCard() {
+        const cleanCard = appSettings.cardNum.replace(/\s+/g, '');
+        navigator.clipboard.writeText(cleanCard).then(() => {
+            const btn = document.querySelector('.card-number span:last-child');
+            const oldText = btn.innerText;
+            btn.innerText = "Успешно!";
+            btn.style.background = "#4ade80";
+            setTimeout(() => {
+                btn.innerText = oldText;
+                btn.style.background = "#38b6ff";
+            }, 1500);
+        });
+    }
+</script>
+
+</body>
+</html>
+
